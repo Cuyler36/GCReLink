@@ -44,7 +44,9 @@ namespace GCReLink
                     var contents = splitRegex.Split(line.Trim());
                     if (contents.Length != 6)
                     {
+#if DEBUG
                         Console.WriteLine($"Line doesn't have 6 subentries! Line: {line}");
+#endif
                         continue;
                     }
 
