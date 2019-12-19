@@ -528,21 +528,27 @@ namespace GCReLink
             var sectionDataDict = new Dictionary<int, Dictionary<string, byte[]>>();
             foreach (var moduleDir in Directory.GetDirectories(rootContentDir))
             {
+                Console.WriteLine($"Beginning rebuild of module {Path.GetFileName(moduleDir)}");
                 var moduleInfo = LoadModuleInfo(moduleDir);
                 var moduleId = moduleInfo.Id;
                 moduleInfoDict.Add(moduleId, moduleInfo);
                 var sectInfo = LoadSectionInfo(moduleDir);
                 sectInfoDict.Add(moduleId, sectInfo);
                 var funcInfo = LoadFunctionDefinitions(moduleDir);
+                Console.WriteLine("Building file tree from module directory...");
                 var (containers, symbols) = LoadFilesFromDirectory(moduleDir, sectInfo);
                 symDict.Add(moduleId, symbols);
+                Console.WriteLine("Creating module function definitions for relinking...");
                 var funcDefList = CreateFunctionDefinitions(containers, funcInfo);
                 var prologSymbol = funcDefList[moduleInfo.PrologFunctionIdx - 1].Symbol;
                 if (prologSymbol == null)
                     throw new Exception("Couldn't locate the prolog function! Relinking cannot continue!");
+                Console.WriteLine("Laying out module sections...");
                 var sectionData = LayoutSections(containers, sectInfo, prologSymbol);
                 var textSectionData = sectionData[".text"];
+                Console.WriteLine("Relinking local module function calls...");
                 RelinkFunctions(containers, funcDefList, ref textSectionData);
+                Console.WriteLine("Creating associated debug symbol map file...");
                 CreateSymbolMapFile(rootContentDir, Path.GetFileName(moduleDir), sectInfo, symbols);
                 sectionDataDict.Add(moduleId, sectionData);
             }
@@ -550,16 +556,20 @@ namespace GCReLink
             // Now that we've got all the modules ready, we can begin creating the relocations.
             foreach (var moduleDir in Directory.GetDirectories(rootContentDir))
             {
+                Console.WriteLine($"Creating module file for module {Path.GetFileName(moduleDir)}");
                 var moduleInfo = LoadModuleInfo(moduleDir);
                 var moduleId = moduleInfo.Id;
                 var relocations = LoadRelocations(moduleDir, symDict, moduleId);
                 CreateModuleFile(rootContentDir, Path.GetFileName(moduleDir), sectInfoDict[moduleId], sectionDataDict[moduleId], relocations, moduleId, moduleInfo.PrologSectionId);
             }
+            Console.WriteLine("Relinking done!");
         }
 
         // TODO: This could have a performance increase if we switch to a hash-map (dictionary) instead of a List of symbol entries.
         private static void DumpModule(in string modulePath, in RelocatableModule rel, in List<SymbolContainer> symbols, in Dictionary<int, Dictionary<string, SymbolEntry>> symbolsByModule)
         {
+            Console.WriteLine($"Dumping module {Path.GetFileName(modulePath)}");
+            Console.WriteLine("Exporting files...");
             // Dump contents into directories
             foreach (var container in symbols)
             {
@@ -578,6 +588,7 @@ namespace GCReLink
                 }
             }
 
+            Console.WriteLine("Writing relocation information to file...");
             // Dump relocations to a human readable format
             using var relocationsFile = File.CreateText(Path.Combine(modulePath, "relocations.txt"));
             foreach (var import in rel.Imports)
@@ -675,11 +686,14 @@ namespace GCReLink
             {
                 var moduleDir = Path.Combine(mainDir, module.Key);
                 Directory.CreateDirectory(moduleDir);
+
+                Console.WriteLine($"Generating module information for module {module.Key}");
                 using var moduleInfoFile = File.CreateText(Path.Combine(moduleDir, "module_info.txt"));
                 var (containers, symbolList) = SymbolMapParser.ParseMapFile(module.Value, mapFiles[module.Key]);
                 containersByModule.Add((int)module.Value.ModuleHeader.ModuleId, containers);
                 symbolsByModule.Add((int)module.Value.ModuleHeader.ModuleId, symbolList);
 
+                Console.WriteLine("Unlinking local module function calls...");
                 var functionDefs = FunctionCallAnalyzer.UnlinkReferencedFunctions(symbolList.Values.ToList());
 
                 // Write needed module info
@@ -692,6 +706,7 @@ namespace GCReLink
                 }
 
                 // Dump section info
+                Console.WriteLine("Generating section information file...");
                 using var sectionInfoFile = File.CreateText(Path.Combine(moduleDir, "sections.txt"));
                 var sectionsInfo = SymbolMapParser.GetSectionsInfo(mapFiles[module.Key]);
                 // Write dummy first.
@@ -702,6 +717,7 @@ namespace GCReLink
                 }
                 sectionInfoFile.Flush();
 
+                Console.WriteLine("Generating function database file...");
                 // Dump function definition file
                 using var funcDefsFile = File.CreateText(Path.Combine(moduleDir, "function_definitions.txt"));
                 foreach (var funcDef in functionDefs)
