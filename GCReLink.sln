@@ -3,7 +3,11 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 16
 VisualStudioVersion = 16.0.29509.3
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GCReLink", "GCReLink\GCReLink.csproj", "{32CF4642-966A-4886-AC32-3CB24492E140}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GCReLink", "GCReLink\GCReLink.csproj", "{32CF4642-966A-4886-AC32-3CB24492E140}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GCNToolKit", "GCNToolKit\GCNToolKit\GCNToolKit.csproj", "{C3EBB284-5E26-4872-BB2F-D6B44520DC17}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BinaryX", "GCNToolKit\BinaryX\BinaryX.csproj", "{60E83D00-4025-44CB-BFCB-7183EAF74BDE}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -15,6 +19,14 @@ Global
 		{32CF4642-966A-4886-AC32-3CB24492E140}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{32CF4642-966A-4886-AC32-3CB24492E140}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{32CF4642-966A-4886-AC32-3CB24492E140}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C3EBB284-5E26-4872-BB2F-D6B44520DC17}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C3EBB284-5E26-4872-BB2F-D6B44520DC17}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C3EBB284-5E26-4872-BB2F-D6B44520DC17}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C3EBB284-5E26-4872-BB2F-D6B44520DC17}.Release|Any CPU.Build.0 = Release|Any CPU
+		{60E83D00-4025-44CB-BFCB-7183EAF74BDE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{60E83D00-4025-44CB-BFCB-7183EAF74BDE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{60E83D00-4025-44CB-BFCB-7183EAF74BDE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{60E83D00-4025-44CB-BFCB-7183EAF74BDE}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

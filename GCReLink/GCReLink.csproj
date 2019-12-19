@@ -10,12 +10,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Reference Include="BinaryX">
-      <HintPath>..\..\BinaryX\BinaryX\bin\Release\netcoreapp3.0\BinaryX.dll</HintPath>
-    </Reference>
-    <Reference Include="GCNToolKit">
-      <HintPath>..\..\GCNToolKit\GCNToolKit\bin\Debug\netcoreapp3.0\GCNToolKit.dll</HintPath>
-    </Reference>
+    <ProjectReference Include="..\GCNToolKit\GCNToolKit\GCNToolKit.csproj" />
   </ItemGroup>
 
 </Project>
