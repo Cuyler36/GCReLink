@@ -405,8 +405,6 @@ namespace GCReLink
                         binaryWriter.Write(sectionData.Length == 0 ? 0 : sectionOffset);
                     binaryWriter.Write(sectionData.Length);
 
-                    //Console.WriteLine($"Wrote section {section.Name} info to {(binaryWriter.Position - 8):X}");
-
                     // Write section data
                     if (sectionData.Length > 0)
                     {
