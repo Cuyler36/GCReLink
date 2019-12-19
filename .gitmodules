@@ -1,0 +1,4 @@
+[submodule "GCNToolKit"]
+	path = GCNToolKit
+	url = https://github.com/Cuyler36/GCNToolKit
+	branch = master
