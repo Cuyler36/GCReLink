@@ -551,6 +551,7 @@ namespace GCReLink
                 Console.WriteLine("Creating associated debug symbol map file...");
                 CreateSymbolMapFile(rootContentDir, Path.GetFileName(moduleDir), sectInfo, symbols);
                 sectionDataDict.Add(moduleId, sectionData);
+                Console.WriteLine();
             }
 
             // Now that we've got all the modules ready, we can begin creating the relocations.
@@ -559,8 +560,11 @@ namespace GCReLink
                 Console.WriteLine($"Creating module file for module {Path.GetFileName(moduleDir)}");
                 var moduleInfo = LoadModuleInfo(moduleDir);
                 var moduleId = moduleInfo.Id;
+                Console.WriteLine("Setting up relocation data...");
                 var relocations = LoadRelocations(moduleDir, symDict, moduleId);
+                Console.WriteLine("Creating relocatable module...");
                 CreateModuleFile(rootContentDir, Path.GetFileName(moduleDir), sectInfoDict[moduleId], sectionDataDict[moduleId], relocations, moduleId, moduleInfo.PrologSectionId);
+                Console.WriteLine();
             }
             Console.WriteLine("Relinking done!");
         }
