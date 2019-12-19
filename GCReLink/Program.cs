@@ -488,7 +488,7 @@ namespace GCReLink
             binaryWriter.Write(importTableOffset);
             binaryWriter.Write((int)importTable.BaseStream.Length);
 
-            binaryWriter.Write((byte)(prologSect < 1 ? 0 : 1));
+            binaryWriter.Write((byte)(prologSect < 1 ? 0 : prologSect));
             // TODO: Support epilog & unresolved
             //var epilogInfo = sectionList.Find(o => o.Name == ".epilog");
             binaryWriter.Write((byte)0);
