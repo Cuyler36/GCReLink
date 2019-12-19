@@ -19,6 +19,12 @@ namespace GCReLink
             var rebuild = false;
             var rootDir = "";
 
+            if (args.Length == 0)
+            {
+                ShowHelp("");
+                return;
+            }
+
             for (var i = 0; i < args.Length; i++)
             {
                 switch (args[i])
@@ -46,44 +52,51 @@ namespace GCReLink
                     case "-h":
                     case "-help":
                     default:
-                        Console.WriteLine("****** GCReLink by Cuyler ******");
-                        if (args.Length < 2)
-                        {
-                            Console.WriteLine("Usage:");
-                            Console.WriteLine("GCReLink.exe -u|-r C:\\Modding Folder");
-                        }
-                        else
-                        {
-                            var cmd = args[++i];
-                            switch (cmd)
-                            {
-                                case "-r":
-                                case "-rebuild":
-                                    Console.WriteLine("Usage:");
-                                    Console.WriteLine($"GCReLink.exe {cmd} C:\\Modding Folder\\GCReLink");
-                                    break;
-                                case "-u":
-                                case "-unpack":
-                                    Console.WriteLine("Usage:");
-                                    Console.WriteLine($"GCReLink.exe {cmd} C:\\Modding Folder");
-                                    break;
-                                default:
-                                    Console.WriteLine("Usage:");
-                                    Console.WriteLine("GCReLink.exe -u|-r C:\\Modding Folder");
-                                    break;
-                            }
-                        }
+                        ShowHelp(args.Length < 2 ? "" : args[++i]);
                         break;
                 }
             }
 
-            if (!Directory.Exists(rootDir))
-                throw new Exception("The root directory supplied doesn't exist!");
+            if (modeSet)
+            {
+                if (!Directory.Exists(rootDir))
+                    throw new Exception("The root directory supplied doesn't exist!");
 
-            if (rebuild)
-                RebuildModules(rootDir);
+                if (rebuild)
+                    RebuildModules(rootDir);
+                else
+                    DumpModules(rootDir);
+            }
+        }
+
+        private static void ShowHelp(in string cmd)
+        {
+            Console.WriteLine("****** GCReLink by Cuyler ******");
+            if (string.IsNullOrEmpty(cmd))
+            {
+                Console.WriteLine("Usage:");
+                Console.WriteLine("\tGCReLink.exe -u|-r \"C:\\Modding Folder\"");
+            }
             else
-                DumpModules(rootDir);
+            {
+                switch (cmd)
+                {
+                    case "-r":
+                    case "-rebuild":
+                        Console.WriteLine("Usage:");
+                        Console.WriteLine($"\tGCReLink.exe {cmd} \"C:\\Modding Folder\\GCReLink\"");
+                        break;
+                    case "-u":
+                    case "-unpack":
+                        Console.WriteLine("Usage:");
+                        Console.WriteLine($"\tGCReLink.exe {cmd} \"C:\\Modding Folder\"");
+                        break;
+                    default:
+                        Console.WriteLine("Usage:");
+                        Console.WriteLine("\tGCReLink.exe -u|-r \"C:\\Modding Folder\"");
+                        break;
+                }
+            }
         }
 
         private static ModuleInfo LoadModuleInfo(in string rootContentDir) => new ModuleInfo(rootContentDir);
