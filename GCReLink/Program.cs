@@ -650,6 +650,9 @@ namespace GCReLink
         private static void DumpModules(in string rootContentDir)
         {
             var mainDir = Path.Combine(rootContentDir, "GCReLink");
+            if (Directory.Exists(mainDir))
+                throw new Exception("A GCReLink project already exists in the given directory!\nPlease delete it or use another directory!");
+            Directory.CreateDirectory(mainDir);
             var relFiles = new Dictionary<string, RelocatableModule>();
             var mapFiles = new Dictionary<string, string>();
 
