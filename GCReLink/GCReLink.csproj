@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>netcoreapp3.0</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="System.Collections.Specialized" Version="4.3.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="BinaryX">
+      <HintPath>..\..\BinaryX\BinaryX\bin\Release\netcoreapp3.0\BinaryX.dll</HintPath>
+    </Reference>
+    <Reference Include="GCNToolKit">
+      <HintPath>..\..\GCNToolKit\GCNToolKit\bin\Debug\netcoreapp3.0\GCNToolKit.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+
+</Project>
