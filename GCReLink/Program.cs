@@ -367,10 +367,11 @@ namespace GCReLink
             return relocations;
         }
 
-        private static void CreateModuleFile(in string rootDir, in string moduleName, in Dictionary<string, SectionInfo> sectionDict, in Dictionary<string, byte[]> sections, in List<SymbolReference> relocations, in int moduleId, in int prologSect)
+        private static string CreateModuleFile(in string rootDir, in string moduleName, in Dictionary<string, SectionInfo> sectionDict, in Dictionary<string, byte[]> sections, in List<SymbolReference> relocations, in int moduleId, in int prologSect)
         {
             // Start by laying out the sections and then the import table and relocation table
-            using var binaryFileStream = File.Create(Path.Combine(rootDir, $"{moduleName}.rel"));
+            var filePath = Path.Combine(rootDir, $"{moduleName}.rel");
+            using var binaryFileStream = File.Create(filePath);
             using var binaryWriter = new BinaryWriterX(binaryFileStream, ByteOrder.BigEndian);
 
             var bssTotal = 0;
@@ -516,6 +517,7 @@ namespace GCReLink
             binaryWriter.Write(0); // How the hell are we supposed to determine the fix size?
 
             // We're done!
+            return filePath;
         }
 
         private static void RebuildModules(in string rootContentDir)
@@ -563,7 +565,21 @@ namespace GCReLink
                 Console.WriteLine("Setting up relocation data...");
                 var relocations = LoadRelocations(moduleDir, symDict, moduleId);
                 Console.WriteLine("Creating relocatable module...");
-                CreateModuleFile(rootContentDir, Path.GetFileName(moduleDir), sectInfoDict[moduleId], sectionDataDict[moduleId], relocations, moduleId, moduleInfo.PrologSectionId);
+                var moduleFilePath = CreateModuleFile(rootContentDir, Path.GetFileName(moduleDir), sectInfoDict[moduleId], sectionDataDict[moduleId], relocations, moduleId, moduleInfo.PrologSectionId);
+                if (moduleInfo.CompressionMode != CompressionMode.None)
+                {
+                    Console.WriteLine("Compressing module...");
+                    var moduleData = File.ReadAllBytes(moduleFilePath);
+                    switch (moduleInfo.CompressionMode)
+                    {
+                        case CompressionMode.SZP:
+                            File.WriteAllBytes(moduleFilePath + ".szp", Yay0.Compress(moduleData));
+                            break;
+                        case CompressionMode.SZS:
+                            File.WriteAllBytes(moduleFilePath + ".szs", Yaz0.Compress(moduleData));
+                            break;
+                    }
+                }
                 Console.WriteLine();
             }
             Console.WriteLine("Relinking done!");
@@ -659,18 +675,28 @@ namespace GCReLink
             Directory.CreateDirectory(mainDir);
             var relFiles = new Dictionary<string, RelocatableModule>();
             var mapFiles = new Dictionary<string, string>();
+            var compressionModes = new Dictionary<string, CompressionMode>();
 
             foreach (var file in Directory.GetFiles(rootContentDir))
             {
+                var fileName = Path.GetFileNameWithoutExtension(file);
                 switch (Path.GetExtension(file))
                 {
                     case ".rel":
                     case ".szs":
                         var data = File.ReadAllBytes(file);
                         if (Yaz0.IsYaz0(data))
+                        {
                             data = Yaz0.Decompress(data);
+                            compressionModes.Add(fileName, CompressionMode.SZS);
+                        }
                         else if (Yay0.IsYay0(data))
+                        {
                             data = Yay0.Decompress(data);
+                            compressionModes.Add(fileName, CompressionMode.SZP);
+                        }
+                        else
+                            compressionModes.Add(fileName, CompressionMode.None);
 
                         using (var reader = new BinaryReaderX(new MemoryStream(data), ByteOrder.BigEndian))
                         {
@@ -678,11 +704,11 @@ namespace GCReLink
                             if (relFiles.Values.Any(o => o.ModuleHeader.ModuleId == rel.ModuleHeader.ModuleId))
                                 Console.WriteLine($"Ignoring rel file: {Path.GetFileName(file)} because a module with that module id has already been loaded!");
                             else
-                                relFiles.Add(Path.GetFileNameWithoutExtension(file), rel);
+                                relFiles.Add(fileName, rel);
                         }
                         break;
                     case ".map":
-                        mapFiles.Add(Path.GetFileNameWithoutExtension(file), file);
+                        mapFiles.Add(fileName, file);
                         break;
                 }
             }
@@ -705,6 +731,7 @@ namespace GCReLink
 
                 // Write needed module info
                 var hasProlog = false;
+                moduleInfoFile.WriteLine("Compression=" + compressionModes[Path.GetFileName(moduleDir)].ToString());
                 moduleInfoFile.WriteLine("ModuleId=" + module.Value.ModuleHeader.ModuleId.ToString());
                 if (module.Value.ModuleHeader.PrologSectionId != 0)
                 {

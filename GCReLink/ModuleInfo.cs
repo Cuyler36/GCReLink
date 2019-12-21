@@ -9,6 +9,8 @@ namespace GCReLink
         public readonly int PrologSectionId;
         public readonly int PrologFunctionIdx;
 
+        public readonly CompressionMode CompressionMode = CompressionMode.None;
+
         public ModuleInfo(in string rootContentDir)
         {
             var moduleInfoFilePath = Path.Combine(rootContentDir, "module_info.txt");
@@ -23,6 +25,9 @@ namespace GCReLink
                 var info = line.Split('=');
                 switch (info[0])
                 {
+                    case "Compression":
+                        CompressionMode = (CompressionMode)Enum.Parse(typeof(CompressionMode), info[1], true);
+                        break;
                     case "ModuleId":
                         Id = int.Parse(info[1]);
                         break;
