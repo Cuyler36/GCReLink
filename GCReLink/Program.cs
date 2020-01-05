@@ -258,7 +258,7 @@ namespace GCReLink
                             bssSectSizes[entryGroup.Key] += containerAlignment - bssAlignment;
 
                         // Calculate the actual size
-                        bssSectSizes[entryGroup.Key] = entryGroup.Aggregate(bssSectSizes[entryGroup.Key], (curr, o) =>
+                        bssSectSizes[entryGroup.Key] = entryGroup.OrderBy(o => o.FileIdx).Aggregate(bssSectSizes[entryGroup.Key], (curr, o) =>
                         {
                             if (o.Alignment > 1 && (curr & (o.Alignment - 1)) != 0)
                                 curr = (curr + o.Alignment) & ~(o.Alignment - 1);
