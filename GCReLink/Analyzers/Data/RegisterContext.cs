@@ -11,7 +11,7 @@
 
     public enum DataType
     {
-        DATA, POINTER
+        DATA, POINTER, BLOB_POINTER, STRUCT_POINTER
     }
 
     public sealed class RegisterContext

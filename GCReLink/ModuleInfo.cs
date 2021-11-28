@@ -6,6 +6,7 @@ namespace GCReLink
     public sealed class ModuleInfo
     {
         public readonly int Id;
+        public readonly int Version = 3;
         public readonly int PrologSectionId;
         public readonly int PrologFunctionIdx;
 
@@ -36,6 +37,9 @@ namespace GCReLink
                         break;
                     case "PrologFuncId":
                         PrologFunctionIdx = int.Parse(info[1]);
+                        break;
+                    case "Version":
+                        Version = int.Parse(info[1]);
                         break;
                 }
             }

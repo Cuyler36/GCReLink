@@ -106,7 +106,7 @@ namespace GCReLink
             var sectionInfoFilePath = Path.Combine(rootContentDir, "sections.txt");
             if (!File.Exists(sectionInfoFilePath))
                 throw new Exception("The section info file wasn't found! Cannot continue with relinking.");
-            return File.ReadAllLines(sectionInfoFilePath).Select(line => new SectionInfo(int.Parse(line.Substring(0, 2)), line.Substring(12), int.Parse(line.Substring(3, 8), NumberStyles.HexNumber))).ToDictionary(o => o.Name);
+            return File.ReadAllLines(sectionInfoFilePath).Select(line => new SectionInfo(int.Parse(line[..2]), line[12..], int.Parse(line.Substring(3, 8), NumberStyles.HexNumber))).ToDictionary(o => o.Name);
         }
 
         private static Dictionary<string, int> LoadFunctionDefinitions(in string rootContentDir)
@@ -114,7 +114,7 @@ namespace GCReLink
             var funcDefFilePath = Path.Combine(rootContentDir, "function_definitions.txt");
             if (!File.Exists(funcDefFilePath))
                 throw new Exception("The function definitions file wasn't found! Cannot continue with relinking.");
-            return File.ReadAllLines(funcDefFilePath).ToDictionary(line => line.Substring(7), line => int.Parse(line.Substring(0, 6)));
+            return File.ReadAllLines(funcDefFilePath).ToDictionary(line => line[7..], line => int.Parse(line[..6]));
         }
 
         private static (List<SymbolContainer>, Dictionary<string, SymbolEntry>) LoadFilesFromDirectory(in string rootContentDir, in Dictionary<string, SectionInfo> sections)
@@ -142,10 +142,10 @@ namespace GCReLink
                         var fileIdx = -1;
                         if (name.StartsWith("FILE__"))
                         {
-                            name = name.Substring(6);
+                            name = name[6..];
                             var nameStart = name.IndexOf("_");
-                            fileIdx = int.Parse(name.Substring(0, nameStart));
-                            name = name.Substring(nameStart + 1);
+                            fileIdx = int.Parse(name[..nameStart]);
+                            name = name[(nameStart + 1)..];
                         }
 
                         // Scrape alignment from name
@@ -153,7 +153,7 @@ namespace GCReLink
                         var alignIdx = name.IndexOf("___ALIGN_");
                         if (alignIdx > -1)
                         {
-                            alignment = int.Parse(name.Substring(alignIdx + 9));
+                            alignment = int.Parse(name[(alignIdx + 9)..]);
                             name = Regex.Replace(name, @"___ALIGN_\d+", "");
                         }
 
@@ -330,9 +330,17 @@ namespace GCReLink
             var line = "";
             while ((line = relocationsStream.ReadLine()) != null)
             {
+                if (line.StartsWith("#") || string.IsNullOrWhiteSpace(line))
+                {
+#if DEBUG
+                    Console.WriteLine($"Skipping Line: {line}");
+#endif
+                    continue; // Skip comments and empty lines.
+                }
+
                 var relocInfoStartIdx = line.IndexOf(' ');
-                var relocationType = (RelocatableModule.RelocationType)Enum.Parse(typeof(RelocatableModule.RelocationType), line.Substring(0, relocInfoStartIdx));
-                var relocInfo = line.Substring(relocInfoStartIdx + 1);
+                var relocationType = (RelocatableModule.RelocationType)Enum.Parse(typeof(RelocatableModule.RelocationType), line[..relocInfoStartIdx]);
+                var relocInfo = line[(relocInfoStartIdx + 1)..];
                 var match = Regex.Match(relocInfo, relocInfoPattern);
                 if (match.Groups.Count == 1)
                     match = Regex.Match(relocInfo, selfRelocInfoPattern);
@@ -344,7 +352,7 @@ namespace GCReLink
                 if (symbol == null)
                     throw new Exception($"Couldn't find a matching object with the path: {localFilePath}!");
 
-                var importModuleId = match.Groups[3].Value == "self" ? moduleId : int.Parse(match.Groups[3].Value.Substring(7));
+                var importModuleId = match.Groups[3].Value == "self" ? moduleId : int.Parse(match.Groups[3].Value[7..]);
                 // Now check to see if our import file is defined
                 SymbolEntry importSymbol = null;
                 if (symbolsByModuleDict.ContainsKey(importModuleId))
@@ -357,7 +365,7 @@ namespace GCReLink
                 }
                 else
                 {
-                    var importSection = int.Parse(match.Groups[4].Value.Substring(15));
+                    var importSection = int.Parse(match.Groups[4].Value[15..]);
                     var relocation = new SymbolReference(symbol, importSymbol, importModuleId, importSection, importSymbolAddr, symbol.SectionOffset + localFileRelocAddr, relocationType);
                     relocations.Add(relocation);
                 }
@@ -367,19 +375,25 @@ namespace GCReLink
             return relocations;
         }
 
-        private static string CreateModuleFile(in string rootDir, in string moduleName, in Dictionary<string, SectionInfo> sectionDict, in Dictionary<string, byte[]> sections, in List<SymbolReference> relocations, in int moduleId, in int prologSect)
+        private static string CreateModuleFile(in string rootDir, in string moduleName, in Dictionary<string, SectionInfo> sectionDict, in Dictionary<string, byte[]> sections, in List<SymbolReference> relocations, in int moduleId, in int prologSect, in int version)
         {
             // Start by laying out the sections and then the import table and relocation table
             var filePath = Path.Combine(rootDir, $"{moduleName}.rel");
             using var binaryFileStream = File.Create(filePath);
             using var binaryWriter = new BinaryWriterX(binaryFileStream, ByteOrder.BigEndian);
-
+            var sectionTableOffset = version switch
+            {
+                1 => 0x40,
+                2 => 0x48,
+                3 => 0x4C,
+                _ => throw new Exception("Bad module version!"),
+            };
             var bssTotal = 0;
             // Write dummy data for the header
-            binaryWriter.Write(new byte[0x4C]);
+            binaryWriter.Write(new byte[sectionTableOffset]);
             // Write section table
             var sectionTableSize = sectionDict.Count * 8;
-            var sectionOffset = 0x4C + sectionTableSize;
+            var sectionOffset = sectionTableOffset + sectionTableSize;
             foreach (var section in sectionDict.OrderBy(o => o.Value.Id))
             {
                 // Align to 32-bytes for data sections for things like display lists and DMA areas
@@ -470,6 +484,10 @@ namespace GCReLink
                 }
 
                 // Each import relocations end needs to be marked by the R_DOL_END relocation.
+
+                // TEST
+                //WriteRelocation(relocTable, 0, RelocatableModule.RelocationType.R_DOLPHIN_NOP, 0, 0);
+
                 WriteRelocation(relocTable, 0, RelocatableModule.RelocationType.R_DOLPHIN_END, 0, 0);
             }
 
@@ -488,12 +506,12 @@ namespace GCReLink
             binaryWriter.Write(moduleId);
             binaryWriter.Write(0);
             binaryWriter.Write(0);
-            binaryWriter.Write(sections.Count);
+            binaryWriter.Write(sectionDict.Count);
 
-            binaryWriter.Write(0x4C);
+            binaryWriter.Write(sectionTableOffset);
             binaryWriter.Write(0);
             binaryWriter.Write(0);
-            binaryWriter.Write(3);
+            binaryWriter.Write(version);
 
             binaryWriter.Write(bssTotal);
             binaryWriter.Write(relocationTableOffset);
@@ -511,10 +529,16 @@ namespace GCReLink
             binaryWriter.Write(0);
             binaryWriter.Write(0);
 
-            binaryWriter.Write(32);
-            binaryWriter.Write(32);
+            if (version > 1)
+            {
+                binaryWriter.Write(32);
+                binaryWriter.Write(32);
 
-            binaryWriter.Write(0); // How the hell are we supposed to determine the fix size?
+                if (version > 2)
+                {
+                    binaryWriter.Write(0); // How the hell are we supposed to determine the fix size?
+                }
+            }
 
             // We're done!
             return filePath;
@@ -565,7 +589,7 @@ namespace GCReLink
                 Console.WriteLine("Setting up relocation data...");
                 var relocations = LoadRelocations(moduleDir, symDict, moduleId);
                 Console.WriteLine("Creating relocatable module...");
-                var moduleFilePath = CreateModuleFile(rootContentDir, Path.GetFileName(moduleDir), sectInfoDict[moduleId], sectionDataDict[moduleId], relocations, moduleId, moduleInfo.PrologSectionId);
+                var moduleFilePath = CreateModuleFile(rootContentDir, Path.GetFileName(moduleDir), sectInfoDict[moduleId], sectionDataDict[moduleId], relocations, moduleId, moduleInfo.PrologSectionId, moduleInfo.Version);
                 if (moduleInfo.CompressionMode != CompressionMode.None)
                 {
                     Console.WriteLine("Compressing module...");
@@ -647,21 +671,21 @@ namespace GCReLink
                         {
                             if (relocation.Addend - importingFromSymbol.SectionOffset != 0)
                             {
-                                relocationsFile.WriteLine($"{relocation.Type.ToString()} {relevantSymbol.RelativeFilePath}+0x{(offset - relevantSymbol.SectionOffset):X8} -> {(import.ModuleId == rel.ModuleHeader.ModuleId ? "self" : "module_" + import.ModuleId)} {importingFromSymbol.RelativeFilePath}+0x{(relocation.Addend - importingFromSymbol.SectionOffset):X8}");
+                                relocationsFile.WriteLine($"{relocation.Type} {relevantSymbol.RelativeFilePath}+0x{(offset - relevantSymbol.SectionOffset):X8} -> {(import.ModuleId == rel.ModuleHeader.ModuleId ? "self" : "module_" + import.ModuleId)} {importingFromSymbol.RelativeFilePath}+0x{(relocation.Addend - importingFromSymbol.SectionOffset):X8}");
                             }
                             else
                             {
-                                relocationsFile.WriteLine($"{relocation.Type.ToString()} {relevantSymbol.RelativeFilePath}+0x{(offset - relevantSymbol.SectionOffset):X8} -> {(import.ModuleId == rel.ModuleHeader.ModuleId ? "self" : "module_" + import.ModuleId)} {importingFromSymbol.RelativeFilePath}");
+                                relocationsFile.WriteLine($"{relocation.Type} {relevantSymbol.RelativeFilePath}+0x{(offset - relevantSymbol.SectionOffset):X8} -> {(import.ModuleId == rel.ModuleHeader.ModuleId ? "self" : "module_" + import.ModuleId)} {importingFromSymbol.RelativeFilePath}");
                             }
                         }
                         else
                         {
-                            relocationsFile.WriteLine($"{relocation.Type.ToString()} {relevantSymbol.RelativeFilePath}+0x{(offset - relevantSymbol.SectionOffset):X8} -> {(import.ModuleId == rel.ModuleHeader.ModuleId ? "self" : "module_" + import.ModuleId)} import_section_{relocation.Section}+0x{relocation.Addend:X8}");
+                            relocationsFile.WriteLine($"{relocation.Type} {relevantSymbol.RelativeFilePath}+0x{(offset - relevantSymbol.SectionOffset):X8} -> {(import.ModuleId == rel.ModuleHeader.ModuleId ? "self" : "module_" + import.ModuleId)} import_section_{relocation.Section}+0x{relocation.Addend:X8}");
                         }
                     }
                     else
                     {
-                        relocationsFile.WriteLine($"{relocation.Type.ToString()} {relevantSymbol.RelativeFilePath}+0x{(offset - relevantSymbol.SectionOffset):X8} -> module_{import.ModuleId} import_section_{relocation.Section}+0x{relocation.Addend:X8}");
+                        relocationsFile.WriteLine($"{relocation.Type} {relevantSymbol.RelativeFilePath}+0x{(offset - relevantSymbol.SectionOffset):X8} -> module_{import.ModuleId} import_section_{relocation.Section}+0x{relocation.Addend:X8}");
                     }
                 }
             }
@@ -683,7 +707,10 @@ namespace GCReLink
                 switch (Path.GetExtension(file))
                 {
                     case ".rel":
-                    case ".szs":
+                    case ".szs" when Path.GetFileName(file).EndsWith(".rel.szs"):
+                        if (Path.GetFileName(file).EndsWith(".rel.szs"))
+                            fileName = Path.GetFileNameWithoutExtension(fileName);
+
                         var data = File.ReadAllBytes(file);
                         if (Yaz0.IsYaz0(data))
                         {
@@ -733,6 +760,7 @@ namespace GCReLink
                 var hasProlog = false;
                 moduleInfoFile.WriteLine("Compression=" + compressionModes[Path.GetFileName(moduleDir)].ToString());
                 moduleInfoFile.WriteLine("ModuleId=" + module.Value.ModuleHeader.ModuleId.ToString());
+                moduleInfoFile.WriteLine("Version=" + module.Value.ModuleHeader.ModuleVersion.ToString());
                 if (module.Value.ModuleHeader.PrologSectionId != 0)
                 {
                     moduleInfoFile.WriteLine("PrologSectId=" + module.Value.ModuleHeader.PrologSectionId);
